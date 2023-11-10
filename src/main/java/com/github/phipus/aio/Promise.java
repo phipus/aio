@@ -32,7 +32,7 @@ public class Promise<T> {
     public static <R> Promise<R> race(List<Promise<R>> promises) {
         Promise<R> result = new Promise<>();
 
-        for(Promise<R> p : promises) {
+        for (Promise<R> p : promises) {
             p.applyCallback((exc, value) -> {
                 if (exc == null) {
                     result.setResolved(value);
@@ -139,58 +139,87 @@ public class Promise<T> {
     }
 
     public void applyCallback(CompletionCallback<T> cb) {
-        synchronized(this) {
-            switch (state) {
-                case PENDING:
-                    callbacks.add(cb);
-                    break;
-                case RESOLVED:
-                    cb.invoke(null, value);
-                    break;
-                case REJECTED:
-                    cb.invoke(exception, null);
-                    break;
+        synchronized (this) {
+            if (state == PENDING) {
+                callbacks.add(cb);
+                return;
             }
+        }
+
+        // state is not changed if it is not pending
+        switch (state) {
+            case RESOLVED:
+                cb.invoke(null, value);
+                break;
+
+            case REJECTED:
+                cb.invoke(exception, null);
+                break;
         }
     }
 
     public <R> Promise<R> chain(CompletionFunc<T, R> onComplete) {
         synchronized (this) {
-            switch (state) {
-                case PENDING:
-                    Promise<R> p = new Promise<>();
-                    callbacks.add((exc, value) -> {
-                        try {
-                            Promise<R> next = onComplete.invoke(exc, value);
-                            next.applyCallback((nextExc, nextValue) -> {
-                                if (nextExc != null) {
-                                    p.setRejected(nextExc);
-                                    return;
-                                }
-                                p.setResolved(nextValue);
-                            });
-                        } catch (Throwable ex) {
-                            p.setRejected(ex);
-                        }
-                    });
-                    return p;
+            if (state == PENDING) {
+                Promise<R> p = new Promise<>();
+                callbacks.add((exc, value) -> {
+                    try {
+                        Promise<R> next = onComplete.invoke(exc, value);
 
-                case RESOLVED:
-                    return onComplete.invoke(null, value);
-                case REJECTED:
-                    return onComplete.invoke(exception, null);
-                default:
-                    throw new RuntimeException("aio.com.github.phipus.aio.Promise has invalid state");
+                        if (next == null)
+                            next = Promise.resolve(null);
+
+                        next.applyCallback((nextExc, nextValue) -> {
+                            if (nextExc != null) {
+                                p.setRejected(nextExc);
+                                return;
+                            }
+                            p.setResolved(nextValue);
+                        });
+                    } catch (Throwable ex) {
+                        p.setRejected(ex);
+                    }
+                });
+                return p;
             }
         }
+
+        // if state is not pending, it can not change thus no locking needed
+        Promise<R> next;
+        switch (state) {
+            case RESOLVED:
+                next = onComplete.invoke(null, value);
+                break;
+            case REJECTED:
+                next = onComplete.invoke(exception, null);
+                break;
+            default:
+                throw new RuntimeException("aio.com.github.phipus.aio.Promise has invalid state");
+        }
+
+        return next == null ? Promise.resolve(null) : next;
     }
 
     public <R> Promise<R> then(ResolveFunc<T, R> onComplete) {
         return chain((exc, value) -> exc != null ? Promise.reject(exc) : onComplete.invoke(value));
     }
 
+    public void thenCallback(ResolveCallback<T> onComplete) {
+        applyCallback((exc, value) -> {
+            if (exc == null)
+                onComplete.invoke(value);
+        });
+    }
+
     public Promise<T> except(RejectFunc<T> onComplete) {
         return chain((exc, value) -> exc == null ? Promise.resolve(value) : onComplete.invoke(exc));
+    }
+
+    public void exceptCallback(RejectCallback onComplete) {
+        applyCallback((exc, value) -> {
+            if (exc != null)
+                onComplete.invoke(exc);
+        });
     }
 
     private void setResolved(T value) {
@@ -202,7 +231,7 @@ public class Promise<T> {
             this.value = value;
         }
         // callbacks are not changed after state has been set
-        for(CompletionCallback<T> cb : callbacks) {
+        for (CompletionCallback<T> cb : callbacks) {
             Loop.schedule(() -> cb.invoke(null, value));
         }
     }
@@ -217,7 +246,7 @@ public class Promise<T> {
         }
 
         // callbacks are not changed after state has been set
-        for (CompletionCallback<T> cb: callbacks) {
+        for (CompletionCallback<T> cb : callbacks) {
             Loop.schedule(() -> cb.invoke(exc, null));
         }
     }
@@ -225,7 +254,6 @@ public class Promise<T> {
     private Promise() {
 
     }
-
 
 
     public Promise(ExecutorCallback<T> executor) {

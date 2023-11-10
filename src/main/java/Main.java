@@ -1,7 +1,4 @@
-import com.github.phipus.aio.Delay;
-import com.github.phipus.aio.Loop;
-import com.github.phipus.aio.Promise;
-import com.github.phipus.aio.ResolveFunc;
+import com.github.phipus.aio.*;
 import com.github.phipus.aio.net.ServerSocket;
 import com.github.phipus.aio.net.Socket;
 
@@ -25,26 +22,36 @@ public class Main {
                 });
 
 
-        ServerSocket.listen(new InetSocketAddress("0.0.0.0", 8080)).then(server -> {
-            ResolveFunc<Socket, Socket> handleSocket = new ResolveFunc<Socket, Socket>() {
+        ServerSocket.listen(new InetSocketAddress("0.0.0.0", 8080)).applyCallback((exc, server) -> {
+            if (exc != null) {
+                exc.printStackTrace();
+                return;
+            }
+
+            server.accept().chain(new CompletionFunc<Socket, Socket>() {
                 @Override
-                public Promise<Socket> invoke(Socket sock) {
-                    sock.write(ByteBuffer.wrap("HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\nHello World\r\n".getBytes(StandardCharsets.UTF_8))).then(v -> {
-                        sock.close();
-                        return Promise.resolve(null);
-                    });
-                    return server.accept().then(this);
+                public Promise<Socket> invoke(Throwable exc, Socket sock) {
+                    if (exc != null) {
+                        exc.printStackTrace();
+                    } else {
+                        ByteBuffer readBuf = ByteBuffer.allocate(4096);
+                        ByteBuffer writeBuf = ByteBuffer.wrap("HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\nHello World\r\n".getBytes(StandardCharsets.UTF_8));
+
+                        sock.read(readBuf)
+                                .then(n -> sock.write(writeBuf))
+                                .then(v -> sock.close())
+                                .exceptCallback(ex -> ex.printStackTrace());
+                    }
+                    return server.accept().chain(this);
                 }
-            };
-
-            server.accept().then(handleSocket).applyCallback((exc, value) -> {
-                if (exc != null) exc.printStackTrace();
             });
+        });
 
-            return Promise.resolve(null);
-        }).applyCallback(((exc, value) -> {
-            if (exc != null) exc.printStackTrace();
-        }));
+
+        Delay.milliseconds(500).then(value -> {
+            System.out.println("Hello World");
+            return null;
+        });
 
         Delay.milliseconds(1000).then((value) -> {
             System.out.println("Hello World");
