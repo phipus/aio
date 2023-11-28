@@ -1,6 +1,8 @@
 package com.github.phipus.aio.net;
 
 import com.github.phipus.aio.Promise;
+import com.github.phipus.aio.iter.AsyncIterator;
+import com.github.phipus.aio.iter.IteratorItem;
 
 import java.net.SocketAddress;
 import java.nio.channels.AsynchronousServerSocketChannel;
@@ -41,5 +43,9 @@ public class ServerSocket {
                 }
             });
         }));
+    }
+
+    public SocketAcceptor acceptAll() {
+        return new SocketAcceptor(ch);
     }
 }
