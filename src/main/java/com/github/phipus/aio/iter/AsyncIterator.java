@@ -9,51 +9,47 @@ public interface AsyncIterator<T> {
     Promise<IteratorItem<T>> next();
 
     default Promise<Void> forEach(ResolveCallback<T> cb) {
-        return new Promise<>(((resolve, reject) -> {
-            next().applyCallback(new CompletionCallback<IteratorItem<T>>() {
-                @Override
-                public void invoke(Throwable exc, IteratorItem<T> value) {
-                    if (exc != null) {
-                        reject.invoke(exc);
-                        return;
-                    }
-                    if (!value.isValid()) {
-                        resolve.invoke(null);
-                        return;
-                    }
-                    cb.invoke(value.getValue());
-                    next().applyCallback(this);
+        return new Promise<>(((resolve, reject) -> next().applyCallback(new CompletionCallback<>() {
+            @Override
+            public void invoke(Throwable exc, IteratorItem<T> value) {
+                if (exc != null) {
+                    reject.invoke(exc);
+                    return;
                 }
-            });
-        }));
+                if (value.isNotValid()) {
+                    resolve.invoke(null);
+                    return;
+                }
+                cb.invoke(value.getValue());
+                next().applyCallback(this);
+            }
+        })));
     }
 
     default Promise<Void> forEachAsync(ResolveFunc<T, Void> cb) {
-        return new Promise<>((resolve, reject) -> {
-            next().applyCallback(new CompletionCallback<IteratorItem<T>>() {
-                @Override
-                public void invoke(Throwable exc, IteratorItem<T> value) {
-                    if (exc != null) {
-                        reject.invoke(exc);
-                        return;
-                    }
-                    if (!value.isValid()) {
-                        resolve.invoke(null);
-                        return;
-                    }
-
-                    CompletionCallback<IteratorItem<T>> handleNext = this;
-
-                    cb.invoke(value.getValue()).applyCallback(((exc1, value1) -> {
-                        if (exc1 != null) {
-                            reject.invoke(exc1);
-                            return;
-                        }
-                        next().applyCallback(handleNext);
-                    }));
+        return new Promise<>((resolve, reject) -> next().applyCallback(new CompletionCallback<>() {
+            @Override
+            public void invoke(Throwable exc, IteratorItem<T> value) {
+                if (exc != null) {
+                    reject.invoke(exc);
+                    return;
                 }
-            });
-        });
+                if (value.isNotValid()) {
+                    resolve.invoke(null);
+                    return;
+                }
+
+                CompletionCallback<IteratorItem<T>> handleNext = this;
+
+                cb.invoke(value.getValue()).applyCallback(((exc1, value1) -> {
+                    if (exc1 != null) {
+                        reject.invoke(exc1);
+                        return;
+                    }
+                    next().applyCallback(handleNext);
+                }));
+            }
+        }));
     }
 
     default <E> AsyncIterator<E> map(MapFunc<T, E> cb) {
@@ -67,7 +63,7 @@ public interface AsyncIterator<T> {
                             reject.invoke(exc);
                             return;
                         }
-                        if (!value.isValid()) {
+                        if (value.isNotValid()) {
                             resolve.invoke(new IteratorItem<>(null, false));
                             return;
                         }
@@ -90,7 +86,7 @@ public interface AsyncIterator<T> {
                             reject.invoke(exc);
                             return;
                         }
-                        if (!value.isValid()) {
+                        if (value.isNotValid()) {
                             resolve.invoke(new IteratorItem<>(null, false));
                             return;
                         }
