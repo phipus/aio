@@ -16,7 +16,7 @@
 
     <distributionManagement>
         <repository>
-            <id>github.com/phipus/java-aio</id>
+            <id>github.com-phipus-java-aio</id>
             <name>Github Java AIO</name>
             <url>https://github.com/phipus/java-aio</url>
         </repository>
