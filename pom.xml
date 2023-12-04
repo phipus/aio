@@ -18,7 +18,7 @@
         <repository>
             <id>github</id>
             <name>Github phipu Java AIO</name>
-            <url>https://maven.pkg.github.com/phipus/java-aio</url>
+            <url>https://maven.pkg.github.com/phipus/aio-java</url>
         </repository>
     </distributionManagement>
 
