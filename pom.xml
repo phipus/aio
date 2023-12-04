@@ -14,4 +14,12 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <distributionManagement>
+        <repository>
+            <id>github.com/phipus/java-aio</id>
+            <name>Github Java AIO</name>
+            <url>https://github.com/phipus/java-aio</url>
+        </repository>
+    </distributionManagement>
+
 </project>
