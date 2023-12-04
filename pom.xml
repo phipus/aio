@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.github.phipus.java-aio</groupId>
-    <artifactId>aio</artifactId>
+    <artifactId>aio-java</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -16,9 +16,9 @@
 
     <distributionManagement>
         <repository>
-            <id>github.com-phipus-java-aio</id>
-            <name>Github Java AIO</name>
-            <url>https://github.com/phipus/java-aio</url>
+            <id>github</id>
+            <name>Github phipu Java AIO</name>
+            <url>https://maven.pkg.github.com/phipus/java-aio</url>
         </repository>
     </distributionManagement>
 
